@@ -30,7 +30,7 @@ jobs:
           output-format: json
 
       - name: Print Grype results
-        run: cat ${{ steps.grype.outputs.json }}
+        run: cat ${{ steps.grype.outputs.json }} | jq .
 
       - name: Post Grype results to PR
         if: github.event_name == 'pull_request' && steps.grype.outcome == 'failure'
@@ -52,7 +52,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `## 🛡️ Vulnerability Scan Findings\n\n${table}\n\n[View job output](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+              body: `### ❌ Vulnerability Scan Failed\n\n${table}\n\n[View Grype job output](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
             });
 
       - name: Fail if vulnerabilities found
@@ -82,7 +82,7 @@ jobs:
           output: trivy-results.json
 
       - name: Print Trivy results
-        run: cat trivy-results.json
+        run: cat trivy-results.json | jq .
 
       - name: Post Trivy results to PR
         if: github.event_name == 'pull_request' && steps.trivy.outcome == 'failure'
@@ -107,7 +107,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `## 🔒 Security Scan Findings\n\n${table}\n\n[View job output](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+              body: `### ❌ Security Scan Failed\n\n${table}\n\n[View Trivy job output](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
             });
 
       - name: Fail if issues found
