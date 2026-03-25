@@ -38,21 +38,28 @@ jobs:
         with:
           script: |
             const fs = require('fs');
+            const severityDot = s => ({ CRITICAL: '🔴', HIGH: '🟠', MEDIUM: '🟡', LOW: '🟢' }[s?.toUpperCase()] ?? '⚪');
             const { matches } = JSON.parse(fs.readFileSync('${{ steps.grype.outputs.json }}', 'utf8'));
             const rows = (matches ?? []).map(m => {
               const fixedIn = m.vulnerability.fix?.versions?.join(', ') || '—';
-              return `| ${m.artifact.name} | ${m.artifact.version} | ${fixedIn} | ${m.artifact.type} | ${m.vulnerability.id} | ${m.vulnerability.severity} |`;
+              const sev = m.vulnerability.severity?.toUpperCase();
+              return `| ${m.artifact.name} | ${m.artifact.version} | ${fixedIn} | ${m.artifact.type} | ${m.vulnerability.id} | ${severityDot(sev)} ${sev} |`;
             });
             const table = [
-              '| Name | Installed | Fixed In | Type | Vulnerability | Severity |',
-              '|------|-----------|----------|------|---------------|----------|',
+              '| Package Name | Installed | Fixed In | Type | Vulnerability | Severity |',
+              '|--------------|-----------|----------|------|---------------|----------|',
               ...rows,
             ].join('\n');
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `### ❌ Vulnerability Scan Failed\n\n${table}\n\n[View Grype job output](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+              body: `
+                ### ❌ Vulnerability Scan (Grype) Failed\n
+                *Resolve all CRITICAL and HIGH severity issues before proceeding.*\n\n
+                ${table}\n\n
+                [View Grype job output](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+              `,
             });
 
       - name: Fail if vulnerabilities found
@@ -78,6 +85,7 @@ jobs:
           scanners: secret,misconfig
           exit-code: "1"
           severity: HIGH,CRITICAL
+          list-all-pkgs: false
           format: json
           output: trivy-results.json
 
@@ -90,13 +98,14 @@ jobs:
         with:
           script: |
             const fs = require('fs');
+            const severityDot = s => ({ CRITICAL: '🔴', HIGH: '🟠', MEDIUM: '🟡', LOW: '🟢' }[s?.toUpperCase()] ?? '⚪');
             const { Results } = JSON.parse(fs.readFileSync('trivy-results.json', 'utf8'));
             const rows = [];
             for (const result of Results ?? []) {
               for (const m of result.Secrets ?? [])
-                rows.push(`| ${result.Target} | ${m.Title} | ${m.Severity} | |`);
+                rows.push(`| ${result.Target} | ${m.Title} | ${severityDot(m.Severity)} ${m.Severity} | |`);
               for (const m of result.Misconfigurations ?? [])
-                rows.push(`| ${result.Target} | ${m.Title} | ${m.Severity} | ${m.PrimaryURL ?? '—'} |`);
+                rows.push(`| ${result.Target} | ${m.Title} | ${severityDot(m.Severity)} ${m.Severity} | ${m.PrimaryURL ?? '—'} |`);
             }
             const table = [
               '| Filename | Finding | Severity | Details |',
@@ -107,7 +116,12 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `### ❌ Security Scan Failed\n\n${table}\n\n[View Trivy job output](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+              body: `
+                ### ❌ Security Scan (Trivy) Failed\n
+                *Resolve all CRITICAL and HIGH severity issues before proceeding.*\n\n
+                ${table}\n\n
+                [View Trivy job output](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+              `,
             });
 
       - name: Fail if issues found
