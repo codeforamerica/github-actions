@@ -38,7 +38,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const severityDot = s => ({ CRITICAL: '🔴', HIGH: '🟠', MEDIUM: '🟡', LOW: '🟢' }[s?.toUpperCase()] ?? '⚪');
+            const severityDot = s => ({ CRITICAL: '⛔️', HIGH: '🔴', MEDIUM: '🟠', LOW: '🟢' }[s?.toUpperCase()] ?? '⚪');
             const { matches } = JSON.parse(fs.readFileSync('${{ steps.grype.outputs.json }}', 'utf8'));
             const rows = (matches ?? []).map(m => {
               const fixedIn = m.vulnerability.fix?.versions?.join(', ') || '—';
@@ -93,18 +93,18 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const severityDot = s => ({ CRITICAL: '🔴', HIGH: '🟠', MEDIUM: '🟡', LOW: '🟢' }[s?.toUpperCase()] ?? '⚪');
+            const severityDot = s => ({ CRITICAL: '⛔️', HIGH: '🔴', MEDIUM: '🟠', LOW: '🟢' }[s?.toUpperCase()] ?? '⚪');
             const { Results } = JSON.parse(fs.readFileSync('trivy-results.json', 'utf8'));
             const rows = [];
             for (const result of Results ?? []) {
               for (const m of result.Secrets ?? [])
-                rows.push(`| ${result.Target} | ${m.Title} | ${severityDot(m.Severity)} ${m.Severity} | |`);
+                rows.push(`| ${result.Target} | ${m.StartLine} | ${m.Title} | ${severityDot(m.Severity)} ${m.Severity} | |`);
               for (const m of result.Misconfigurations ?? [])
-                rows.push(`| ${result.Target} | ${m.Title} | ${severityDot(m.Severity)} ${m.Severity} | ${m.PrimaryURL ?? '—'} |`);
+                rows.push(`| ${result.Target} | ${m.CauseMetadata?.StartLine ?? '—'} | ${m.Title} | ${severityDot(m.Severity)} ${m.Severity} | ${m.PrimaryURL ?? '—'} |`);
             }
             const table = [
-              '| Filename | Finding | Severity | Details |',
-              '|----------|---------|----------|---------|',
+              '| Filename | Line | Finding | Severity | Details |',
+              '|----------|-----:|---------|----------|---------|',
               ...rows,
             ].join('\n');
             await github.rest.issues.createComment({
