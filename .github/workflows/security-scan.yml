@@ -32,9 +32,9 @@ jobs:
 
       - name: Annotate PR with Grype results
         if: github.event_name == 'pull_request'
-        uses: yeaung276/sarif-annotator@9fd4902237acb9c7916f92a9a8a36a8eb7c3c6e5 # v1.0.1
+        uses: jontyms/sarif-annotations@4cf91f33600ae6d96dfab32e5f9e30621ebfac9a # v0.0.3
         with:
-          sarif_path: ${{ steps.grype.outputs.sarif }}
+          sarif-file: ${{ steps.grype.outputs.sarif }}
 
       - name: Upload Grype SARIF to GitHub Advanced Security
         if: github.event.repository.visibility == 'public'
@@ -73,9 +73,9 @@ jobs:
 
       - name: Annotate PR with Trivy results
         if: github.event_name == 'pull_request'
-        uses: yeaung276/sarif-annotator@9fd4902237acb9c7916f92a9a8a36a8eb7c3c6e5 # v1.0.1
+        uses: jontyms/sarif-annotations@4cf91f33600ae6d96dfab32e5f9e30621ebfac9a # v0.0.3
         with:
-          sarif_path: trivy-results.sarif
+          sarif-file: trivy-results.sarif
 
       - name: Upload Trivy SARIF to GitHub Advanced Security
         if: github.event.repository.visibility == 'public'
