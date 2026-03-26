@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      security-events: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -27,35 +28,20 @@ jobs:
           path: ${{ inputs.path }}
           fail-build: true
           severity-cutoff: high
-          output-format: json
+          output-format: sarif
 
-      - name: Print Grype results
-        run: cat ${{ steps.grype.outputs.json }} | jq .
-
-      - name: Post Grype results to PR
-        if: github.event_name == 'pull_request' && steps.grype.outcome == 'failure'
-        uses: actions/github-script@v7
+      - name: Annotate PR with Grype results
+        if: github.event_name == 'pull_request'
+        uses: yeaung276/sarif-annotator@9fd4902237acb9c7916f92a9a8a36a8eb7c3c6e5 # v1.0.1
         with:
-          script: |
-            const fs = require('fs');
-            const severityDot = s => ({ CRITICAL: '⛔️', HIGH: '🔴', MEDIUM: '🟠', LOW: '🟢' }[s?.toUpperCase()] ?? '⚪');
-            const { matches } = JSON.parse(fs.readFileSync('${{ steps.grype.outputs.json }}', 'utf8'));
-            const rows = (matches ?? []).map(m => {
-              const fixedIn = m.vulnerability.fix?.versions?.join(', ') || '—';
-              const sev = m.vulnerability.severity?.toUpperCase();
-              return `| ${m.artifact.name} | ${m.artifact.version} | ${fixedIn} | ${m.artifact.type} | ${m.vulnerability.id} | ${severityDot(sev)} ${sev} |`;
-            });
-            const table = [
-              '| Package Name | Installed | Fixed In | Type | Vulnerability | Severity |',
-              '|--------------|-----------|----------|------|---------------|----------|',
-              ...rows,
-            ].join('\n');
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `### ❌ Vulnerability Scan (Grype) Failed\n\nResolve all CRITICAL and HIGH severity findings before proceeding.\n\n${table}\n\n[View Grype job output](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
-            });
+          sarif_path: ${{ steps.grype.outputs.sarif }}
+
+      - name: Upload Grype SARIF to GitHub Advanced Security
+        if: github.event.repository.visibility == 'public'
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: ${{ steps.grype.outputs.sarif }}
+          category: grype
 
       - name: Fail if vulnerabilities found
         if: steps.grype.outcome == 'failure'
@@ -66,6 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      security-events: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -81,38 +68,21 @@ jobs:
           exit-code: "1"
           severity: HIGH,CRITICAL
           list-all-pkgs: false
-          format: json
-          output: trivy-results.json
+          format: sarif
+          output: trivy-results.sarif
 
-      - name: Print Trivy results
-        run: cat trivy-results.json | jq .
-
-      - name: Post Trivy results to PR
-        if: github.event_name == 'pull_request' && steps.trivy.outcome == 'failure'
-        uses: actions/github-script@v7
+      - name: Annotate PR with Trivy results
+        if: github.event_name == 'pull_request'
+        uses: yeaung276/sarif-annotator@9fd4902237acb9c7916f92a9a8a36a8eb7c3c6e5 # v1.0.1
         with:
-          script: |
-            const fs = require('fs');
-            const severityDot = s => ({ CRITICAL: '⛔️', HIGH: '🔴', MEDIUM: '🟠', LOW: '🟢' }[s?.toUpperCase()] ?? '⚪');
-            const { Results } = JSON.parse(fs.readFileSync('trivy-results.json', 'utf8'));
-            const rows = [];
-            for (const result of Results ?? []) {
-              for (const m of result.Secrets ?? [])
-                rows.push(`| ${result.Target} | ${m.StartLine} | ${m.Title} | ${severityDot(m.Severity)} ${m.Severity} | |`);
-              for (const m of result.Misconfigurations ?? [])
-                rows.push(`| ${result.Target} | ${m.CauseMetadata?.StartLine ?? '—'} | ${m.Title} | ${severityDot(m.Severity)} ${m.Severity} | ${m.PrimaryURL ?? '—'} |`);
-            }
-            const table = [
-              '| Filename | Line | Finding | Severity | Details |',
-              '|----------|-----:|---------|----------|---------|',
-              ...rows,
-            ].join('\n');
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `### ❌ Security Scan (Trivy) Failed\n\nResolve all CRITICAL and HIGH severity findings before proceeding.\n\n${table}\n\n[View Trivy job output](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
-            });
+          sarif_path: trivy-results.sarif
+
+      - name: Upload Trivy SARIF to GitHub Advanced Security
+        if: github.event.repository.visibility == 'public'
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy
 
       - name: Fail if issues found
         if: steps.trivy.outcome == 'failure'
