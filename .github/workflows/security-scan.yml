@@ -8,10 +8,16 @@ on:
         type: string
         required: false
         default: "./"
+      skip-vuln:
+        description: "Skip the Grype vulnerability scan"
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   grype-scan:
     name: Grype Scan (vulnerabilities)
+    if: ${{ !inputs.skip-vuln }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
