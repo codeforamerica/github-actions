@@ -8,12 +8,19 @@ on:
         type: string
         required: false
         default: "./"
+      skip-vuln:
+        description: "Skip the Grype vulnerability scan"
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   grype-scan:
     name: Grype Scan (vulnerabilities)
+    if: ${{ !inputs.skip-vuln }}
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pull-requests: write
       security-events: write
     steps:
@@ -77,6 +84,7 @@ jobs:
     name: Trivy Scan (secrets, misconfigurations)
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pull-requests: write
       security-events: write
     steps:
