@@ -98,6 +98,7 @@ jobs:
             ${{ steps.config.outputs.configs }} \
             --sarif \
             --output semgrep-results.sarif \
+            --error \
             "${{ inputs.path }}"
 
       - name: Annotate PR with semgrep results
