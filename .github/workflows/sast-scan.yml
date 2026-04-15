@@ -1,0 +1,148 @@
+name: SAST Scan
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: "Filesystem path to scan"
+        type: string
+        required: false
+        default: "."
+      default-rules:
+        description: "Enable default cross-language rulesets (OWASP Top 10, CWE Top 25, r2c security audit, secure defaults)"
+        type: boolean
+        required: false
+        default: true
+      ruby:
+        description: "Enable Ruby language ruleset"
+        type: boolean
+        required: false
+        default: false
+      java:
+        description: "Enable Java language ruleset"
+        type: boolean
+        required: false
+        default: false
+      typescript:
+        description: "Enable TypeScript language ruleset"
+        type: boolean
+        required: false
+        default: false
+      javascript:
+        description: "Enable JavaScript language ruleset"
+        type: boolean
+        required: false
+        default: false
+      csharp:
+        description: "Enable C# language ruleset"
+        type: boolean
+        required: false
+        default: false
+      python:
+        description: "Enable Python language ruleset"
+        type: boolean
+        required: false
+        default: false
+      fail-on-findings:
+        description: "Fail the workflow if SAST findings are detected"
+        type: boolean
+        required: false
+        default: true
+
+jobs:
+  semgrep-scan:
+    name: Semgrep Scan (SAST)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Validate ruleset selection
+        run: |
+          if [ "${{ inputs.default-rules }}" != "true" ] && \
+             [ "${{ inputs.ruby }}" != "true" ] && \
+             [ "${{ inputs.java }}" != "true" ] && \
+             [ "${{ inputs.typescript }}" != "true" ] && \
+             [ "${{ inputs.javascript }}" != "true" ] && \
+             [ "${{ inputs.csharp }}" != "true" ] && \
+             [ "${{ inputs.python }}" != "true" ]; then
+            echo "::error::At least one ruleset must be enabled (default-rules, ruby, java, typescript, javascript, csharp, or python)."
+            exit 1
+          fi
+
+      - name: Install semgrep
+        run: pip install semgrep
+
+      - name: Build ruleset config
+        id: config
+        run: |
+          configs=""
+          if [ "${{ inputs.default-rules }}" = "true" ]; then
+            configs="$configs --config p/owasp-top-ten --config p/cwe-top-25 --config p/r2c-security-audit --config p/secure-defaults"
+          fi
+          [ "${{ inputs.ruby }}" = "true" ]          && configs="$configs --config p/ruby"
+          [ "${{ inputs.java }}" = "true" ]          && configs="$configs --config p/java"
+          [ "${{ inputs.typescript }}" = "true" ]    && configs="$configs --config p/typescript"
+          [ "${{ inputs.javascript }}" = "true" ]    && configs="$configs --config p/javascript"
+          [ "${{ inputs.csharp }}" = "true" ]        && configs="$configs --config p/csharp"
+          [ "${{ inputs.python }}" = "true" ]        && configs="$configs --config p/python"
+          echo "configs=${configs# }" >> $GITHUB_OUTPUT
+
+      - name: Run semgrep scan
+        id: semgrep
+        continue-on-error: true
+        run: |
+          semgrep scan \
+            ${{ steps.config.outputs.configs }} \
+            --sarif \
+            --output semgrep-results.sarif \
+            --severity ERROR \
+            --error \
+            "${{ inputs.path }}"
+
+      - name: Annotate PR with semgrep results
+        if: github.event_name == 'pull_request'
+        uses: jontyms/sarif-annotations@4cf91f33600ae6d96dfab32e5f9e30621ebfac9a # v0.0.3
+        with:
+          sarif-file: semgrep-results.sarif
+
+      - name: Generate semgrep markdown report
+        id: semgrep-report
+        if: github.event_name == 'pull_request' && steps.semgrep.outcome == 'failure'
+        run: |
+          curl -sSL https://github.com/fulgas/sarif-to-md-rs/releases/download/v1.2.0/sarif-to-md-1.2.0-x86_64-unknown-linux-musl.tar.gz | tar xz
+          sudo mv sarif-to-md /usr/local/bin/
+          {
+            echo "body<<SEMGREP_EOF"
+            sarif-to-md -i semgrep-results.sarif -f github-flavored -e
+            echo "SEMGREP_EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Post semgrep results to PR
+        if: github.event_name == 'pull_request' && steps.semgrep.outcome == 'failure'
+        uses: actions/github-script@v7
+        env:
+          REPORT_BODY: ${{ steps.semgrep-report.outputs.body }}
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `### ❌ SAST Scan (Semgrep) Failed\n\nResolve all findings before proceeding.\n\n${process.env.REPORT_BODY}\n\n[View Semgrep job output](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+            });
+
+      - name: Upload semgrep SARIF to GitHub Advanced Security
+        if: github.event.repository.visibility == 'public'
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: semgrep-results.sarif
+          category: semgrep
+
+      - name: Fail if findings detected
+        if: inputs.fail-on-findings && steps.semgrep.outcome == 'failure'
+        run: exit 1
