@@ -50,8 +50,8 @@ on:
         default: true
 
 jobs:
-  opengrep-scan:
-    name: OpenGrep Scan (SAST)
+  semgrep-scan:
+    name: Semgrep Scan (SAST)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -61,7 +61,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Validate language selection
+      - name: Validate ruleset selection
         run: |
           if [ "${{ inputs.owasp-top-ten }}" != "true" ] && \
              [ "${{ inputs.ruby }}" != "true" ] && \
@@ -74,8 +74,8 @@ jobs:
             exit 1
           fi
 
-      - name: Install opengrep
-        run: pip install opengrep
+      - name: Install semgrep
+        run: pip install semgrep
 
       - name: Build ruleset config
         id: config
@@ -83,62 +83,62 @@ jobs:
           configs=""
           [ "${{ inputs.owasp-top-ten }}" = "true" ] && configs="$configs --config p/owasp-top-ten"
           [ "${{ inputs.ruby }}" = "true" ]          && configs="$configs --config p/ruby"
-          [ "${{ inputs.java }}" = "true" ]        && configs="$configs --config p/java"
-          [ "${{ inputs.typescript }}" = "true" ]  && configs="$configs --config p/typescript"
-          [ "${{ inputs.javascript }}" = "true" ]  && configs="$configs --config p/javascript"
-          [ "${{ inputs.csharp }}" = "true" ]      && configs="$configs --config p/csharp"
-          [ "${{ inputs.python }}" = "true" ]      && configs="$configs --config p/python"
+          [ "${{ inputs.java }}" = "true" ]          && configs="$configs --config p/java"
+          [ "${{ inputs.typescript }}" = "true" ]    && configs="$configs --config p/typescript"
+          [ "${{ inputs.javascript }}" = "true" ]    && configs="$configs --config p/javascript"
+          [ "${{ inputs.csharp }}" = "true" ]        && configs="$configs --config p/csharp"
+          [ "${{ inputs.python }}" = "true" ]        && configs="$configs --config p/python"
           echo "configs=${configs# }" >> $GITHUB_OUTPUT
 
-      - name: Run opengrep scan
-        id: opengrep
+      - name: Run semgrep scan
+        id: semgrep
         continue-on-error: true
         run: |
-          opengrep scan \
+          semgrep scan \
             ${{ steps.config.outputs.configs }} \
             --sarif \
-            --output opengrep-results.sarif \
+            --output semgrep-results.sarif \
             "${{ inputs.path }}"
 
-      - name: Annotate PR with opengrep results
+      - name: Annotate PR with semgrep results
         if: github.event_name == 'pull_request'
         uses: jontyms/sarif-annotations@4cf91f33600ae6d96dfab32e5f9e30621ebfac9a # v0.0.3
         with:
-          sarif-file: opengrep-results.sarif
+          sarif-file: semgrep-results.sarif
 
-      - name: Generate opengrep markdown report
-        id: opengrep-report
-        if: github.event_name == 'pull_request' && steps.opengrep.outcome == 'failure'
+      - name: Generate semgrep markdown report
+        id: semgrep-report
+        if: github.event_name == 'pull_request' && steps.semgrep.outcome == 'failure'
         run: |
           curl -sSL https://github.com/fulgas/sarif-to-md-rs/releases/download/v1.2.0/sarif-to-md-1.2.0-x86_64-unknown-linux-musl.tar.gz | tar xz
           sudo mv sarif-to-md /usr/local/bin/
           {
-            echo "body<<OPENGREP_EOF"
-            sarif-to-md -i opengrep-results.sarif -f github-flavored -e
-            echo "OPENGREP_EOF"
+            echo "body<<SEMGREP_EOF"
+            sarif-to-md -i semgrep-results.sarif -f github-flavored -e
+            echo "SEMGREP_EOF"
           } >> $GITHUB_OUTPUT
 
-      - name: Post opengrep results to PR
-        if: github.event_name == 'pull_request' && steps.opengrep.outcome == 'failure'
+      - name: Post semgrep results to PR
+        if: github.event_name == 'pull_request' && steps.semgrep.outcome == 'failure'
         uses: actions/github-script@v7
         env:
-          REPORT_BODY: ${{ steps.opengrep-report.outputs.body }}
+          REPORT_BODY: ${{ steps.semgrep-report.outputs.body }}
         with:
           script: |
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `### ❌ SAST Scan (OpenGrep) Failed\n\nResolve all findings before proceeding.\n\n${process.env.REPORT_BODY}\n\n[View OpenGrep job output](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+              body: `### ❌ SAST Scan (Semgrep) Failed\n\nResolve all findings before proceeding.\n\n${process.env.REPORT_BODY}\n\n[View Semgrep job output](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
             });
 
-      - name: Upload opengrep SARIF to GitHub Advanced Security
+      - name: Upload semgrep SARIF to GitHub Advanced Security
         if: github.event.repository.visibility == 'public'
         uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: opengrep-results.sarif
-          category: opengrep
+          sarif_file: semgrep-results.sarif
+          category: semgrep
 
       - name: Fail if findings detected
-        if: inputs.fail-on-findings && steps.opengrep.outcome == 'failure'
+        if: inputs.fail-on-findings && steps.semgrep.outcome == 'failure'
         run: exit 1
