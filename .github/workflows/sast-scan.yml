@@ -8,8 +8,8 @@ on:
         type: string
         required: false
         default: "."
-      owasp-top-ten:
-        description: "Enable OWASP Top 10 ruleset (cross-language)"
+      default-rules:
+        description: "Enable default cross-language rulesets (OWASP Top 10, CWE Top 25, r2c security audit, secure defaults)"
         type: boolean
         required: false
         default: true
@@ -63,14 +63,14 @@ jobs:
 
       - name: Validate ruleset selection
         run: |
-          if [ "${{ inputs.owasp-top-ten }}" != "true" ] && \
+          if [ "${{ inputs.default-rules }}" != "true" ] && \
              [ "${{ inputs.ruby }}" != "true" ] && \
              [ "${{ inputs.java }}" != "true" ] && \
              [ "${{ inputs.typescript }}" != "true" ] && \
              [ "${{ inputs.javascript }}" != "true" ] && \
              [ "${{ inputs.csharp }}" != "true" ] && \
              [ "${{ inputs.python }}" != "true" ]; then
-            echo "::error::At least one ruleset must be enabled (owasp-top-ten, ruby, java, typescript, javascript, csharp, or python)."
+            echo "::error::At least one ruleset must be enabled (default-rules, ruby, java, typescript, javascript, csharp, or python)."
             exit 1
           fi
 
@@ -81,7 +81,9 @@ jobs:
         id: config
         run: |
           configs=""
-          [ "${{ inputs.owasp-top-ten }}" = "true" ] && configs="$configs --config p/owasp-top-ten"
+          if [ "${{ inputs.default-rules }}" = "true" ]; then
+            configs="$configs --config p/owasp-top-ten --config p/cwe-top-25 --config p/r2c-security-audit --config p/secure-defaults"
+          fi
           [ "${{ inputs.ruby }}" = "true" ]          && configs="$configs --config p/ruby"
           [ "${{ inputs.java }}" = "true" ]          && configs="$configs --config p/java"
           [ "${{ inputs.typescript }}" = "true" ]    && configs="$configs --config p/typescript"
@@ -98,6 +100,7 @@ jobs:
             ${{ steps.config.outputs.configs }} \
             --sarif \
             --output semgrep-results.sarif \
+            --severity ERROR \
             --error \
             "${{ inputs.path }}"
 
