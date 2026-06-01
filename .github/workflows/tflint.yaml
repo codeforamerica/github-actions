@@ -1,4 +1,4 @@
-name: OpenTofu Linting
+name: OpenTofu Linting (TFLint)
 
 on:
   workflow_call:

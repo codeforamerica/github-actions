@@ -25,9 +25,11 @@ The filename and inputs you require will depend on the workflow(s) you're using.
 
 ## Workflows
 
-| Workflow              | Description                                                                                      |
-| --------------------- | ------------------------------------------------------------------------------------------------ |
-| `security-scan.yml`   | Runs a collection of security scans against your repository.                                     |
-| [`trivy.yaml`][trivy] | Runs a Trivy security scan against your repository, and optionally upload the results to GitHub. |
+| Workflow              | Description                                                                                                |
+| --------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `security-scan.yml`   | Runs a collection of security scans against your repository.                                               |
+| [`tflint.yaml`]       | Runs a TFLint scan against your OpenTofu (or Terraform) code, and optionally upload the results to GitHub. |
+| [`trivy.yaml`][trivy] | Runs a Trivy security scan against your repository, and optionally upload the results to GitHub.           |
 
+[tflint]: docs/workflows/tflint.md
 [trivy]: docs/workflows/trivy.md
