@@ -36,8 +36,8 @@ jobs:
         # v1.0.5
         uses: Miragon/sarif-report-parse@35fad652d9d39999c7df647e69610a441ceb4ccd
         with:
-          severity-level: low
           sarif-file: trivy.sarif
+          severity-level: low
       # When SARIF uploads are supported, upload the SARIF file to GitHub.
       - name: Upload SARIF result
         if: always() && steps.security-features.outputs.sarif == 'true'
