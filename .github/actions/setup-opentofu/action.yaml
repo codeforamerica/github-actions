@@ -2,7 +2,7 @@ name: Setup OpenTofu
 description: Sets up OpenTofu and related environment variables
 inputs:
   cache-key:
-    description: Unique identifier for the cache.
+    description: Optional unique identifier to add to the cache key.
     required: false
     default: ''
   config:
