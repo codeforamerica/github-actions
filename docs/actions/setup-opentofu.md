@@ -53,14 +53,44 @@ In your calling workflow, simply set the environment variables for your OpenTofu
 inputs in the formate `TF_VAR_<NAME>` (all uppercase). This action will handle
 the conversion and optional inputs.
 
+### OpenTofu version
+
+By default, this action installs a pinned version of OpenTofu and validates the
+downloaded binary against known checksums. If you need a specific version, you
+can override both the `tofu-version` and `checksums` inputs together.
+
+> [!IMPORTANT]
+> Always update `tofu-version` and `checksums` together. If only the version is
+> changed, the checksum validation will fail. If only the checksums are changed,
+> the wrong binary may be validated.
+
+To find the checksums for a specific version, download the `SHA256SUMS` file
+from the [OpenTofu releases page][releases] and include entries for the
+architectures your runners use (typically `linux_amd64` for Ubuntu runners).
+
+```yaml
+- name: Setup OpenTofu
+  uses: codeforamerica/github-actions/.github/actions/setup-opentofu@main
+  with:
+    config: service
+    # Wrap the version in quotes to ensure it's treated as a string.
+    tofu-version: "1.12.1"
+    checksums: |
+      1fc9af962e3632b7cd0ba27076cd9f1ced177567defe9e331ac37f5a40468575  tofu_1.12.1_linux_amd64.zip
+```
+
 ## Inputs
 
-| Name           | Description                                              | Required | Default          |
-| -------------- | -------------------------------------------------------- | -------- | ---------------- |
-| `config`       | OpenTofu configuration to initialize.                    | Yes      |                  |
-| `cache-key`    | Optional unique identifier to add to the cache key.      | No       | `""`             |
-| `configs-path` | Path to the OpenTofu configurations for your repository. | No       | `./tofu/configs` |
+| Name           | Description                                                                                                                   | Required | Default                       |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------- |
+| `config`       | OpenTofu configuration to initialize.                                                                                         | Yes      |                               |
+| `cache-key`    | Optional unique identifier to add to the cache key.                                                                           | No       | `""`                          |
+| `checksums`    | Newline-separated list of checksums to validate the downloaded OpenTofu binary. Must be updated together with `tofu-version`. | No       | _(pinned to default version)_ |
+| `configs-path` | Path to the OpenTofu configurations for your repository.                                                                      | No       | `./tofu/configs`              |
+| `tofu-version` | OpenTofu version to install. Must be updated together with `checksums`.                                                       | No       | `"1.12.1"`                    |
 
 ## Outputs
 
 _This action has no outputs._
+
+[releases]: https://github.com/opentofu/opentofu/releases
