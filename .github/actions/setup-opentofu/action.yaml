@@ -11,7 +11,7 @@ inputs:
       binary. Must be updated together with tofu-version.
     required: false
     default: |
-      1fc9af962e3632b7cd0ba27076cd9f1ced177567defe9e331ac37f5a40468575  tofu_1.12.1_linux_amd64.zip
+      1fc9af962e3632b7cd0ba27076cd9f1ced177567defe9e331ac37f5a40468575
   config:
     description: OpenTofu configuration to initialize.
     required: true

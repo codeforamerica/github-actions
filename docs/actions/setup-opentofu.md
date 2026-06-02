@@ -66,7 +66,8 @@ can override both the `tofu-version` and `checksums` inputs together.
 
 To find the checksums for a specific version, download the `SHA256SUMS` file
 from the [OpenTofu releases page][releases] and include entries for the
-architectures your runners use (typically `linux_amd64` for Ubuntu runners).
+architectures your runners use (typically just `linux_amd64` for Ubuntu
+runners).
 
 ```yaml
 - name: Setup OpenTofu
@@ -76,7 +77,7 @@ architectures your runners use (typically `linux_amd64` for Ubuntu runners).
     # Wrap the version in quotes to ensure it's treated as a string.
     tofu-version: "1.12.1"
     checksums: |
-      1fc9af962e3632b7cd0ba27076cd9f1ced177567defe9e331ac37f5a40468575  tofu_1.12.1_linux_amd64.zip
+      1fc9af962e3632b7cd0ba27076cd9f1ced177567defe9e331ac37f5a40468575
 ```
 
 ## Inputs
