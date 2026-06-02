@@ -1,0 +1,59 @@
+name: OpenTofu Linting (TFLint)
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: "Directory where `*.tf` files are located."
+        type: string
+        required: false
+        default: "./"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v6
+      - name: Check available security features
+        id: security-features
+        uses: codeforamerica/github-actions/.github/actions/security-features@main
+      - name: Cache plugin directory
+        uses: actions/cache@v5
+        with:
+          path: ~/.tflint.d/plugins
+          key: tflint-${{ hashFiles('.tflint.hcl') }}
+      - name: Setup TFLint
+        # v6.2.2
+        uses: terraform-linters/setup-tflint@b480b8fcdaa6f2c577f8e4fa799e89e756bb7c93
+      - name: Show TFLint version
+        run: tflint --version
+      - name: Initialize TFLint
+        run: tflint --init
+      - name: Run TFLint
+        # Run TFLint, outputting the results to a SARIF file. We use `tee` so
+        # that we can still see the output in the logs, and capture the exit
+        # code properly with `pipefail`.
+        run: |
+          set -o pipefail
+          tflint --format sarif --recursive \
+            --config "$GITHUB_WORKSPACE/.tflint.hcl" \
+            | tee tflint.sarif
+          exit "${PIPESTATUS[0]}"
+      - name: Parse SARIF file for annotations
+        if: always()
+        # v1.0.5
+        uses: Miragon/sarif-report-parse@35fad652d9d39999c7df647e69610a441ceb4ccd
+        with:
+          sarif-file: tflint.sarif
+          severity-level: low
+      # When SARIF uploads are supported, upload the SARIF file to GitHub.
+      - name: Upload SARIF result
+        if: always() && steps.security-features.outputs.sarif == 'true'
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: tflint.sarif
