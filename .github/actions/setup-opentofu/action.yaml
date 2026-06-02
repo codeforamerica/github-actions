@@ -1,0 +1,52 @@
+name: Setup OpenTofu
+description: Sets up OpenTofu and related environment variables
+inputs:
+  cache-key:
+    description: Unique identifier for the cache.
+    required: false
+    default: ''
+  config:
+    description: OpenTofu configuration to initialize.
+    required: true
+    default: service
+  configs-path:
+    description: Path to the OpenTofu configurations.
+    required: false
+    default: ./tofu/configs
+runs:
+  using: composite
+  steps:
+    - name: Cache OpenTofu
+      uses: actions/cache@v5
+      with:
+        path: ${{ inputs.configs-path }}/${{ inputs.config }}/.terraform
+        key: ${{ runner.os }}-tofu-${{ inputs.config }}-${{ inputs.cache-key }}-${{ hashFiles('${{ inputs.configs-path }}/${{ inputs.config }}/.terraform.lock.hcl') }}
+        restore-keys: |
+          ${{ runner.os }}-tofu-${{ inputs.config }}-${{ inputs.cache-key }}-
+    - name: Setup OpenTofu
+      # v2.0.1
+      uses: opentofu/setup-opentofu@847eaa4afeb791b06daa46e8eafa8b1b68d7cfb4
+      with:
+        tofu_wrapper: false
+    - name: Display OpenTofu version
+      shell: bash
+      run: tofu version
+    # This allows us to use uppercase environment variables for consistency, and
+    # gives us a way to support optional values for OpenTofu.
+    - name: Convert environment variables to the proper case
+      shell: bash
+      working-directory: ${{ inputs.configs-path }}/${{ inputs.config }}
+      run: |
+        for var in $(compgen -e | grep '^TF_VAR_'); do
+          if [ -n "${!var}" ]; then
+            lower_part=$(echo "${var:7}" | tr '[:upper:]' '[:lower:]')
+            echo "Setting TF_VAR_${lower_part}"
+            echo "TF_VAR_${lower_part}=${!var}" >> $GITHUB_ENV
+          else
+            echo "${var} is empty, skipping"
+          fi
+        done
+    - name: Initialize OpenTofu
+      shell: bash
+      working-directory: ${{ inputs.configs-path }}/${{ inputs.config }}
+      run: tofu init -reconfigure
