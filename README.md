@@ -61,10 +61,10 @@ using.
 
 ### Available actions
 
-| Action              | Description                                                                |
-| ------------------- | -------------------------------------------------------------------------- |
-| `security-features` | Checks if the repository has access to different GitHub security features. |
-| `setup-opentofu`    | Sets up OpenTofu and related environment variables.                        |
+| Action                                          | Description                                                                |
+| ----------------------------------------------- | -------------------------------------------------------------------------- |
+| [`security-features`][action-security-features] | Checks if the repository has access to different GitHub security features. |
+| [`setup-opentofu`][action-setup-opentofu]       | Sets up OpenTofu and related environment variables.                        |
 
 [action-security-features]: docs/actions/security-features.md
 [action-setup-opentofu]: docs/actions/setup-opentofu.md
