@@ -1,0 +1,66 @@
+name: Setup OpenTofu
+description: Sets up OpenTofu and related environment variables
+inputs:
+  cache-key:
+    description: Optional unique identifier to add to the cache key.
+    required: false
+    default: ""
+  checksums:
+    description: >-
+      Newline-separated list of checksums to validate the downloaded OpenTofu
+      binary. Must be updated together with tofu-version.
+    required: false
+    default: |
+      1fc9af962e3632b7cd0ba27076cd9f1ced177567defe9e331ac37f5a40468575
+  config:
+    description: OpenTofu configuration to initialize.
+    required: true
+    default: service
+  configs-path:
+    description: Path to the OpenTofu configurations.
+    required: false
+    default: ./tofu/configs
+  tofu-version:
+    description: >-
+      OpenTofu version to install. Must be updated together with checksums.
+    required: false
+    default: "1.12.1"
+runs:
+  using: composite
+  steps:
+    - name: Cache OpenTofu
+      uses: actions/cache@v5
+      with:
+        path: ${{ inputs.configs-path }}/${{ inputs.config }}/.terraform
+        key: ${{ runner.os }}-tofu-${{ inputs.config }}-${{ inputs.cache-key }}-${{ hashFiles('${{ inputs.configs-path }}/${{ inputs.config }}/.terraform.lock.hcl') }}
+        restore-keys: |
+          ${{ runner.os }}-tofu-${{ inputs.config }}-${{ inputs.cache-key }}-
+    - name: Setup OpenTofu
+      # v2.0.1
+      uses: opentofu/setup-opentofu@847eaa4afeb791b06daa46e8eafa8b1b68d7cfb4
+      with:
+        checksums: ${{ inputs.checksums }}
+        tofu_version: ${{ inputs.tofu-version }}
+        tofu_wrapper: false
+    - name: Display OpenTofu version
+      shell: bash
+      run: tofu version
+    # This allows us to use uppercase environment variables for consistency, and
+    # gives us a way to support optional values for OpenTofu.
+    - name: Convert environment variables to the proper case
+      shell: bash
+      working-directory: ${{ inputs.configs-path }}/${{ inputs.config }}
+      run: |
+        for var in $(compgen -e | grep '^TF_VAR_'); do
+          if [ -n "${!var}" ]; then
+            lower_part=$(echo "${var:7}" | tr '[:upper:]' '[:lower:]')
+            echo "Setting TF_VAR_${lower_part}"
+            echo "TF_VAR_${lower_part}=${!var}" >> $GITHUB_ENV
+          else
+            echo "${var} is empty, skipping"
+          fi
+        done
+    - name: Initialize OpenTofu
+      shell: bash
+      working-directory: ${{ inputs.configs-path }}/${{ inputs.config }}
+      run: tofu init -reconfigure
