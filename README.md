@@ -61,13 +61,15 @@ using.
 
 ### Available actions
 
-| Action                                          | Description                                                                |
-| ----------------------------------------------- | -------------------------------------------------------------------------- |
-| [`security-features`][action-security-features] | Checks if the repository has access to different GitHub security features. |
-| [`setup-opentofu`][action-setup-opentofu]       | Sets up OpenTofu and related environment variables.                        |
+| Action                                                        | Description                                                                         |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [`opentofu-changed-modules`][action-opentofu-changed-modules] | Finds all OpenTofu modules that have changed in a pull request or push to a branch. |
+| [`security-features`][action-security-features]               | Checks if the repository has access to different GitHub security features.          |
+| [`setup-opentofu`][action-setup-opentofu]                     | Sets up OpenTofu and related environment variables.                                 |
 
 [action-security-features]: docs/actions/security-features.md
 [action-setup-opentofu]: docs/actions/setup-opentofu.md
+[action-opentofu-changed-modules]: docs/actions/opentofu-changed-modules.md
 [composite-actions]: https://docs.github.com/en/actions/tutorials/create-actions/create-a-composite-action
 [workflow-tflint]: docs/workflows/tflint.md
 [workflow-trivy]: docs/workflows/trivy.md
