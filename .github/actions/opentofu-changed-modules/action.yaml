@@ -7,6 +7,12 @@ outputs:
     description: A JSON array of all changed modules.
     value: ${{ steps.modified.outputs.modules }}
 inputs:
+  strip-working-directory:
+    description: >-
+      When true, strips the working directory prefix from the returned module
+      paths.
+    required: false
+    default: 'true'
   working-directory:
     description: The working directory to search for modules in.
     required: false
@@ -52,9 +58,12 @@ runs:
           }
 
           const modules = ${{ steps.find.outputs.modules }};
-          const modifiedModules = modules.filter(
-            module => changedFiles.some(file => new RegExp(`^${module}/.+`).test(file))
-          );
+          const workingDirectory = '${{ inputs.working-directory }}';
+          const strip = '${{ inputs.strip-working-directory }}' === 'true';
+
+          const modifiedModules = modules
+            .filter(module => changedFiles.some(file => new RegExp(`^${module}/.+`).test(file)))
+            .map(module => strip ? module.replace(`${workingDirectory}/`, '') : module);
 
           core.setOutput('modules', modifiedModules);
     - name: Show modified modules
