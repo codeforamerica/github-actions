@@ -1,0 +1,74 @@
+name: Plan infrastructure changes
+
+on:
+  workflow_call:
+    inputs:
+      config:
+        description: Configuration to deploy.
+        type: string
+        required: true
+      configs-path:
+        description: Path to the OpenTofu configurations.
+        type: string
+        required: false
+        default: ./tofu/configs
+      environment:
+        description: Environment to plan on.
+        default: development
+        required: false
+        type: string
+    secrets:
+      AWS_ROLE_ARN:
+        required: true
+      DOPPLER_IDENTITY_ID:
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+run-name: Plan ${{ inputs.config }} on ${{ inputs.environment }}
+
+jobs:
+  plan:
+    name: Plan ${{ inputs.config }} on ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Fetch values from Doppler
+        uses: dopplerhq/secrets-fetch-action@v2.0.0
+        id: doppler
+        with:
+          auth-method: oidc
+          doppler-identity-id: ${{ secrets.DOPPLER_IDENTITY_ID }}
+          doppler-project: ${{ vars.DOPPLER_PROJECT }}
+          doppler-config: ${{ vars.DOPPLER_CONFIG }}
+          inject-env-vars: true
+      - name: Set up AWS credentials
+        # 6.2.0
+        uses: aws-actions/configure-aws-credentials@e7f100cf4c008499ea8adda475de1042d6975c7b
+        with:
+          aws-region: ${{ env.AWS_REGION || 'us-east-1' }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: github-actions-${{ github.job }}-${{ github.run_id }}
+      - name: Setup OpenTofu
+        uses: codeforamerica/github-actions/.github/actions/setup-opentofu@main
+        with:
+          config: ${{ inputs.config }}
+          configs-path: ${{ inputs.configs-path }}
+      - name: Plan changes
+        working-directory: ${{ inputs.configs-path }}/${{ inputs.config }}
+        run: tofu plan -input=false -concise -no-color -out tfplan > plan.txt
+      - name: Display plan
+        working-directory: ${{ inputs.configs-path }}/${{ inputs.config }}
+        run: tofu show -plan tfplan
+      - name: Upload plan file
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.config }}-tfplan
+          path: |
+            ${{ inputs.configs-path }}/${{ inputs.config }}/plan.txt
+            ${{ inputs.configs-path }}/${{ inputs.config }}/tfplan
+          retention-days: 5
