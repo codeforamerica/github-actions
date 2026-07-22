@@ -33,6 +33,7 @@ The filename and inputs you require will depend on the workflow(s) you're using.
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `security-scan.yml`              | Runs a collection of security scans against your repository.                                               |
 | [`tflint.yaml`][workflow-tflint] | Runs a TFLint scan against your OpenTofu (or Terraform) code, and optionally upload the results to GitHub. |
+| [`tofu-fmt.yaml`][workflow-fmt]  | Formats your OpenTofu (or Terraform) code with `tofu fmt` and commits any fixes back to the branch.        |
 | [`trivy.yaml`][workflow-trivy]   | Runs a Trivy security scan against your repository, and optionally upload the results to GitHub.           |
 
 ## Composite actions
@@ -71,5 +72,6 @@ using.
 [action-setup-opentofu]: docs/actions/setup-opentofu.md
 [action-opentofu-changed-modules]: docs/actions/opentofu-changed-modules.md
 [composite-actions]: https://docs.github.com/en/actions/tutorials/create-actions/create-a-composite-action
+[workflow-fmt]: docs/workflows/tofu-fmt.md
 [workflow-tflint]: docs/workflows/tflint.md
 [workflow-trivy]: docs/workflows/trivy.md

@@ -1,0 +1,60 @@
+name: Apply OpenTofu formatting
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: "Directory to format, recursively."
+        type: string
+        required: false
+        default: "./"
+
+permissions:
+  contents: write
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v6
+        with:
+          # Check out the source branch so formatting fixes can be committed
+          # back to it: `github.head_ref` on pull requests (the PR's branch,
+          # rather than the detached merge ref), or `github.ref_name` on pushes.
+          ref: ${{ github.head_ref || github.ref_name }}
+      # `tofu fmt` is a pure formatting pass: it needs no backend, credentials,
+      # or `tofu init`, so we install OpenTofu directly rather than through the
+      # `setup-opentofu` composite action (which initializes a configuration).
+      # The version and pin are kept in sync with that action for consistency.
+      - name: Setup OpenTofu
+        # v2.0.1
+        uses: opentofu/setup-opentofu@847eaa4afeb791b06daa46e8eafa8b1b68d7cfb4
+        with:
+          tofu_version: "1.12.1"
+          tofu_wrapper: false
+      - name: Apply formatting
+        run: tofu fmt -recursive "${{ inputs.path }}"
+      - name: Check for modified files
+        id: check_changes
+        shell: bash
+        run: |
+          if [ -n "$(git diff --name-only --diff-filter=M)" ]; then
+            echo "fmt_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "fmt_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+      # Commit the fixes back to the source branch, so formatting is corrected
+      # before merge. Skipped when running directly on `main`, which is a
+      # protected merge target that should never be pushed to. Committing with
+      # the default `GITHUB_TOKEN` does not re-trigger workflows, so this cannot
+      # loop.
+      - name: Commit formatting fixes
+        if: steps.check_changes.outputs.fmt_changes == 'true' && github.ref != 'refs/heads/main'
+        shell: bash
+        run: |
+          git config --global user.name 'lint-action[bot]'
+          git config --global user.email 'tax-eng@codeforamerica.org'
+          git diff --name-only --diff-filter=M | xargs git add
+          git commit -m "Apply tofu fmt fixes"
+          git push
