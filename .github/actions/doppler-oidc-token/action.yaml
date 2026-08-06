@@ -1,0 +1,14 @@
+name: Get Doppler OIDC Token
+description: >-
+  Gets an single use OIDC token from Doppler for use in GitHub Actions
+  workflows.
+runs:
+  using: composite
+  steps:
+    - name: Get Doppler OIDC token
+      shell: bash
+      run: |
+          DOPPLER_OIDC_TOKEN=$(curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://github.com/$GITHUB_REPOSITORY_OWNER" | jq -r '.value')
+          echo "::add-mask::$DOPPLER_OIDC_TOKEN"
+          echo "DOPPLER_OIDC_TOKEN=$DOPPLER_OIDC_TOKEN" >> $GITHUB_ENV
