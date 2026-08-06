@@ -1,0 +1,92 @@
+name: Apply infrastructure changes
+
+on:
+  workflow_call:
+    inputs:
+      config:
+        description: Configuration layer to apply.
+        type: string
+        required: true
+      configs-path:
+        description: Path to the OpenTofu configuration layers.
+        type: string
+        required: false
+        default: ./tofu/configs
+      distinct_id:
+        description: Distinct ID for this execution, used for tracking.
+        required: false
+        type: string
+      environment:
+        description: Environment to apply to.
+        default: development
+        required: false
+        type: string
+    secrets:
+      AWS_ROLE_ARN:
+        required: true
+      DOPPLER_OIDC_IDENTITY:
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+run-name: Apply ${{ inputs.config }} to ${{ inputs.environment }}
+
+jobs:
+  plan:
+    uses: codeforamerica/github-actions/.github/workflows/opentofu-plan.yaml@opentofu-ops
+    # uses: codeforamerica/github-actions/.github/workflows/opentofu-plan.yaml@main
+    secrets:
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+      DOPPLER_OIDC_IDENTITY: ${{ secrets.DOPPLER_OIDC_IDENTITY }}
+    with:
+      config: ${{ inputs.config }}
+      distinct_id: ${{ inputs.distinct_id || github.run_id }}
+      environment: ${{ inputs.environment }}
+
+  apply:
+    name: Apply ${{ inputs.config }} to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    needs: plan
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: distinct ID ${{ inputs.distinct_id || github.run_id }}
+        uses: imesense/gha-echo-action@4f631d5693606335d797e599319cdeb402ac9568 # v0.2
+        with:
+          input-string: ${{ inputs.distinct_id || github.run_id }}
+      - name: Checkout code
+        uses: actions/checkout@v7
+      - name: Fetch values from Doppler
+        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534 # v2.0.0
+        id: doppler
+        with:
+          auth-method: oidc
+          doppler-identity-id: ${{ secrets.DOPPLER_OIDC_IDENTITY }}
+          doppler-project: ${{ vars.DOPPLER_PROJECT }}
+          doppler-config: ${{ vars.DOPPLER_CONFIG }}
+          inject-env-vars: true
+      - name: Get an OIDC token for Doppler
+        uses: codeforamerica/github-actions/.github/actions/doppler-oidc-token@opentofu-ops
+        # uses: codeforamerica/github-actions/.github/actions/doppler-oidc-token@main
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: github-actions-${{ github.job }}-${{ github.run_id }}
+      - name: Download plan file
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.config }}-tfplan
+          path: ${{ inputs.configs-path }}/${{ inputs.config }}
+      - name: Setup OpenTofu
+        uses: codeforamerica/github-actions/.github/actions/setup-opentofu@main
+        with:
+          config: ${{ inputs.config }}
+          configs-path: ${{ inputs.configs-path }}
+      - name: Apply changes
+        working-directory: ${{ inputs.configs-path }}/${{ inputs.config }}
+        env:
+          DOPPLER_OIDC_IDENTITY: ${{ secrets.DOPPLER_OIDC_IDENTITY }}
+        run: tofu apply tfplan
