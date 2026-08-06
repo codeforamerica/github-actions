@@ -55,8 +55,7 @@ jobs:
           doppler-config: ${{ vars.DOPPLER_CONFIG }}
           inject-env-vars: true
       - name: Get an OIDC token for Doppler
-        uses: codeforamerica/github-actions/.github/actions/doppler-oidc-token@opentofu-ops
-        # uses: codeforamerica/github-actions/.github/actions/doppler-oidc-token@main
+        uses: codeforamerica/github-actions/.github/actions/doppler-oidc-token@main
       - name: Set up AWS credentials
         uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
         with:
