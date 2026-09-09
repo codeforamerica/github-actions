@@ -1,6 +1,10 @@
 name: Setup OpenTofu
 description: Sets up OpenTofu and related environment variables
 inputs:
+  application:
+    description: Optional application name, matching a specs/<application>.yaml file in the configuration.
+    required: false
+    default: ""
   cache-key:
     description: Optional unique identifier to add to the cache key.
     required: false
@@ -28,6 +32,22 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Select application
+      if: inputs.application != ''
+      shell: bash
+      working-directory: ${{ inputs.configs-path }}/${{ inputs.config }}
+      env:
+        APPLICATION: ${{ inputs.application }}
+      run: |
+        [[ "$APPLICATION" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]] ||
+          { echo "Invalid application name" >&2; exit 1; }
+
+        [[ -f "specs/$APPLICATION.yaml" ]] ||
+          { echo "No application spec: $APPLICATION" >&2; exit 1; }
+
+        printf '%s\n' \
+          "TF_VAR_APPLICATION=$APPLICATION" \
+          "TF_VAR_application=$APPLICATION" >> "$GITHUB_ENV"
     - name: Cache OpenTofu
       uses: actions/cache@v5
       with:

@@ -43,6 +43,7 @@ jobs:
 
 | Name           | Description                                              | Required | Default                |
 | -------------- | -------------------------------------------------------- | -------- | ---------------------- |
+| `application`  | Application matching a spec in the selected configuration. | No       | `""`                  |
 | `config`       | The OpenTofu configuration layer to apply.               | Yes      | n/a                    |
 | `configs-path` | Path to the OpenTofu configurations for your repository. | No       | `./tofu/configs`       |
 | `distinct_id`  | Optional unique identifier to print to the logs.         | No       | `${{ github.run_id }}` |

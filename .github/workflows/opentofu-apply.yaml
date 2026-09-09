@@ -3,6 +3,11 @@ name: Apply infrastructure changes
 on:
   workflow_call:
     inputs:
+      application:
+        description: Optional application name, matching a spec in the selected configuration.
+        type: string
+        required: false
+        default: ""
       config:
         description: Configuration layer to apply.
         type: string
@@ -41,6 +46,7 @@ jobs:
       AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
       DOPPLER_OIDC_IDENTITY: ${{ secrets.DOPPLER_OIDC_IDENTITY }}
     with:
+      application: ${{ inputs.application }}
       config: ${{ inputs.config }}
       distinct_id: ${{ inputs.distinct_id || github.run_id }}
       environment: ${{ inputs.environment }}
@@ -82,6 +88,7 @@ jobs:
       - name: Setup OpenTofu
         uses: codeforamerica/github-actions/.github/actions/setup-opentofu@main
         with:
+          application: ${{ inputs.application }}
           config: ${{ inputs.config }}
           configs-path: ${{ inputs.configs-path }}
       - name: Apply changes

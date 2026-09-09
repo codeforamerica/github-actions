@@ -84,6 +84,7 @@ runners).
 
 | Name           | Description                                                                                                                   | Required | Default                       |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------- | ----------------------------- |
+| `application`  | Application matching `specs/<application>.yaml` in the selected configuration; overrides both TF_VAR cases.                 | No       | `""`                          |
 | `config`       | OpenTofu configuration to initialize.                                                                                         | Yes      |                               |
 | `cache-key`    | Optional unique identifier to add to the cache key.                                                                           | No       | `""`                          |
 | `checksums`    | Newline-separated list of checksums to validate the downloaded OpenTofu binary. Must be updated together with `tofu-version`. | No       | _(pinned to default version)_ |
