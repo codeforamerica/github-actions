@@ -32,6 +32,7 @@ The filename and inputs you require will depend on the workflow(s) you're using.
 | Workflow                                         | Description                                                                                                                      |
 | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
 | `security-scan.yml`                              | Runs a collection of security scans against your repository.                                                                     |
+| [`ecr-build-push.yaml`][workflow-ecr-build-push] | Builds a Docker image and pushes it to an Amazon ECR repository.                                                                 |
 | [`opentofu-apply.yaml`][workflow-opentofu-apply] | Runs `tofu apply` against the specified configuration layer and environment.                                                     |
 | [`opentofu-plan.yaml`][workflow-opentofu-plan]   | Runs `tofu plan` against the specified configuration layer and environment, and captures the resulting plan file as an artifact. |
 | [`tflint.yaml`][workflow-tflint]                 | Runs a TFLint scan against your OpenTofu (or Terraform) code, and optionally upload the results to GitHub.                       |
@@ -75,6 +76,7 @@ using.
 [action-opentofu-changed-modules]: docs/actions/opentofu-changed-modules.md
 [action-doppler-oidc-token]: docs/actions/doppler-oidc-token.md
 [composite-actions]: https://docs.github.com/en/actions/tutorials/create-actions/create-a-composite-action
+[workflow-ecr-build-push]: docs/workflows/ecr-build-push.md
 [workflow-opentofu-apply]: docs/workflows/opentofu-apply.md
 [workflow-opentofu-plan]: docs/workflows/opentofu-plan.md
 [workflow-tflint]: docs/workflows/tflint.md

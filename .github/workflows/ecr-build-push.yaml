@@ -1,0 +1,215 @@
+name: Build and push image to ECR
+
+on:
+  workflow_call:
+    inputs:
+      ecr-repository:
+        description: Name of the ECR repository to push to.
+        type: string
+        required: true
+      aws-account-id:
+        description: AWS account ID that owns the ECR repository. Defaults to the account of the AWS credentials.
+        type: string
+        required: false
+        default: ""
+      image-tag:
+        description: Primary tag for the image. Defaults to the commit SHA.
+        type: string
+        required: false
+        default: ""
+      additional-tags:
+        description: Additional tags for the image, separated by whitespace or newlines.
+        type: string
+        required: false
+        default: ""
+      context:
+        description: Docker build context.
+        type: string
+        required: false
+        default: .
+      file:
+        description: Path to the Dockerfile. Defaults to Dockerfile in the build context.
+        type: string
+        required: false
+        default: ""
+      target:
+        description: Build stage to target.
+        type: string
+        required: false
+        default: ""
+      build-args:
+        description: Build arguments, one KEY=value per line.
+        type: string
+        required: false
+        default: ""
+      fail-on-existing-tag:
+        description: Fail if the primary tag already exists in the repository. Set to false to overwrite it.
+        type: boolean
+        required: false
+        default: true
+      platforms:
+        description: Target platforms for the build.
+        type: string
+        required: false
+        default: linux/amd64
+      provenance:
+        description: Generate a provenance attestation for the image.
+        type: boolean
+        required: false
+        default: false
+      sbom:
+        description: Generate an SBOM attestation for the image.
+        type: boolean
+        required: false
+        default: false
+      registry:
+        description: Additional registry to log in to before building, for pulling base images. Set to an empty string to skip.
+        type: string
+        required: false
+        default: dhi.io
+      aws-region:
+        description: AWS region of the ECR repository. Defaults to the AWS_REGION variable, or us-east-1.
+        type: string
+        required: false
+        default: ""
+      environment:
+        description: GitHub environment to run in, if secrets are scoped to one.
+        type: string
+        required: false
+        default: ""
+    secrets:
+      AWS_ROLE_ARN:
+        description: ARN of the IAM role to assume. Preferred over access keys.
+        required: false
+      AWS_ACCESS_KEY_ID:
+        description: Deprecated. AWS access key ID, if not using AWS_ROLE_ARN.
+        required: false
+      AWS_SECRET_ACCESS_KEY:
+        description: Deprecated. AWS secret access key, if not using AWS_ROLE_ARN.
+        required: false
+      REGISTRY_USERNAME:
+        description: Username for the additional registry. Defaults to DOCKER_HUB_USERNAME when secrets are inherited.
+        required: false
+      REGISTRY_PASSWORD:
+        description: Password or token for the additional registry. Defaults to DOCKER_HUB_READONLY_TOKEN when secrets are inherited.
+        required: false
+    outputs:
+      image:
+        description: Full image URI with the primary tag.
+        value: ${{ jobs.build.outputs.image }}
+      digest:
+        description: Digest of the pushed image.
+        value: ${{ jobs.build.outputs.digest }}
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build:
+    name: Build and push ${{ inputs.ecr-repository }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    outputs:
+      image: ${{ steps.tags.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      # Static access keys are still supported for repositories that haven't
+      # moved to OIDC, but we want them to be visible so they get migrated.
+      - name: Check for static AWS credentials
+        env:
+          USING_ACCESS_KEYS: ${{ secrets.AWS_ACCESS_KEY_ID != '' }}
+        run: |
+          if [[ "${USING_ACCESS_KEYS}" == "true" ]]; then
+            echo "::warning title=Static AWS credentials::AWS_ACCESS_KEY_ID is deprecated. Pass AWS_ROLE_ARN without access keys to authenticate with OIDC instead."
+          fi
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          aws-region: ${{ inputs.aws-region || vars.AWS_REGION || 'us-east-1' }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: github-actions-${{ github.job }}-${{ github.run_id }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+        with:
+          registries: ${{ inputs.aws-account-id }}
+      - name: Log in to ${{ inputs.registry }}
+        if: inputs.registry != ''
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ inputs.registry }}
+          # Fall back to the org-wide Docker Hub secrets when the caller uses
+          # `secrets: inherit`.
+          username: ${{ secrets.REGISTRY_USERNAME || secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD || secrets.DOCKER_HUB_READONLY_TOKEN }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Determine image tags
+        id: tags
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ inputs.ecr-repository }}
+          IMAGE_TAG: ${{ inputs.image-tag || github.sha }}
+          ADDITIONAL_TAGS: ${{ inputs.additional-tags }}
+        run: |
+          set -f
+          {
+            echo "image=${IMAGE}:${IMAGE_TAG}"
+            echo "tags<<__TAGS__"
+            echo "${IMAGE}:${IMAGE_TAG}"
+            for tag in ${ADDITIONAL_TAGS}; do
+              echo "${IMAGE}:${tag}"
+            done
+            echo "__TAGS__"
+          } >> "$GITHUB_OUTPUT"
+      - name: Check for existing tag
+        if: inputs.fail-on-existing-tag
+        env:
+          REPOSITORY: ${{ inputs.ecr-repository }}
+          REGISTRY_ID: ${{ inputs.aws-account-id }}
+          IMAGE_TAG: ${{ inputs.image-tag || github.sha }}
+        run: |
+          args=(--repository-name "${REPOSITORY}" --image-ids "imageTag=${IMAGE_TAG}")
+          if [[ -n "${REGISTRY_ID}" ]]; then
+            args+=(--registry-id "${REGISTRY_ID}")
+          fi
+          if output=$(aws ecr describe-images "${args[@]}" 2>&1); then
+            echo "::error::Tag ${IMAGE_TAG} already exists in ${REPOSITORY}. Set fail-on-existing-tag to false to overwrite it."
+            exit 1
+          elif [[ "${output}" != *ImageNotFoundException* ]]; then
+            echo "${output}"
+            exit 1
+          fi
+      # Attestations are disabled by default because they make buildx push an
+      # image index, which Amazon Inspector reports as UnsupportedImageError.
+      # A single-platform manifest is what Inspector can scan by tag.
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.file }}
+          target: ${{ inputs.target }}
+          build-args: ${{ inputs.build-args }}
+          platforms: ${{ inputs.platforms }}
+          provenance: ${{ inputs.provenance }}
+          sbom: ${{ inputs.sbom }}
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+      - name: Summarize image
+        env:
+          IMAGE: ${{ steps.tags.outputs.image }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          {
+            echo "### Pushed image"
+            echo
+            echo "- Image: \`${IMAGE}\`"
+            echo "- Digest: \`${DIGEST}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
