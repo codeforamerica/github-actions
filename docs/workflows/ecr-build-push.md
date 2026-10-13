@@ -141,13 +141,14 @@ replace an image that may already be deployed. Additional tags, such as
 
 ## Secrets
 
-| Name                    | Description                                            | Required |
-| ----------------------- | ------------------------------------------------------ | -------- |
-| `AWS_ROLE_ARN`          | ARN of the IAM role to assume.                         | No[^aws] |
-| `AWS_ACCESS_KEY_ID`     | AWS access key ID, if not using `AWS_ROLE_ARN`.        | No[^aws] |
-| `AWS_SECRET_ACCESS_KEY` | AWS secret access key, if not using `AWS_ROLE_ARN`.    | No[^aws] |
-| `REGISTRY_USERNAME`     | Username for the registry set in the `registry` input. | No[^reg] |
-| `REGISTRY_PASSWORD`     | Password or token for the registry set in `registry`.  | No[^reg] |
+| Name                    | Description                                             | Required |
+| ----------------------- | ------------------------------------------------------- | -------- |
+| `AWS_ROLE_ARN`          | ARN of the IAM role to assume.                          | No[^aws] |
+| `AWS_ACCESS_KEY_ID`     | Deprecated. AWS access key ID, if not using a role.     | No[^aws] |
+| `AWS_SECRET_ACCESS_KEY` | Deprecated. AWS secret access key, if not using a role. | No[^aws] |
+| `REGISTRY_USERNAME`     | Username for the registry set in the `registry` input.  | No[^reg] |
+| `REGISTRY_PASSWORD`     | Password or token for the registry set in `registry`.   | No[^reg] |
+
 ## Outputs
 
 | Name     | Description                                                          |
@@ -164,5 +165,6 @@ replace an image that may already be deployed. Additional tags, such as
 [^reg]: Required unless `registry` is set to an empty string, or secrets are
   inherited and `DOCKER_HUB_USERNAME` and `DOCKER_HUB_READONLY_TOKEN` are set.
 
-[^keys]: Static access keys are supported for repositories that haven't moved
-  to OIDC yet, but an IAM role is preferred.
+[^keys]: Static access keys are deprecated. They're still supported for
+  repositories that haven't moved to OIDC yet, but the workflow logs a warning
+  when `AWS_ACCESS_KEY_ID` is set.
