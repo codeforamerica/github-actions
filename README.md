@@ -29,14 +29,16 @@ The filename and inputs you require will depend on the workflow(s) you're using.
 
 ### Available workflows
 
-| Workflow                                         | Description                                                                                                                      |
-| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| `security-scan.yml`                              | Runs a collection of security scans against your repository.                                                                     |
-| [`ecr-build-push.yaml`][workflow-ecr-build-push] | Builds a Docker image and pushes it to an Amazon ECR repository.                                                                 |
-| [`opentofu-apply.yaml`][workflow-opentofu-apply] | Runs `tofu apply` against the specified configuration layer and environment.                                                     |
-| [`opentofu-plan.yaml`][workflow-opentofu-plan]   | Runs `tofu plan` against the specified configuration layer and environment, and captures the resulting plan file as an artifact. |
-| [`tflint.yaml`][workflow-tflint]                 | Runs a TFLint scan against your OpenTofu (or Terraform) code, and optionally upload the results to GitHub.                       |
-| [`trivy.yaml`][workflow-trivy]                   | Runs a Trivy security scan against your repository, and optionally upload the results to GitHub.                                 |
+| Workflow                                                                                        | Description                                                                                                                      |
+| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `security-scan.yml`                                                                             | Runs a collection of security scans against your repository.                                                                     |
+| [`ecr-build-push.yaml`][workflow-ecr-build-push]                                                | Builds a Docker image and pushes it to an Amazon ECR repository.                                                                 |
+| [`opentofu-apply.yaml`][workflow-opentofu-apply]                                                | Runs `tofu apply` against the specified configuration layer and environment.                                                     |
+| [`opentofu-plan.yaml`][workflow-opentofu-plan]                                                  | Runs `tofu plan` against the specified configuration layer and environment, and captures the resulting plan file as an artifact. |
+| [`shared-services-container-hosting-deploy`][workflow-shared-services-container-hosting-deploy] | Deploys a containerized application to our shared services container hosting platform.                                           |
+| [`shared-services-static-hosting-deploy`][workflow-shared-services-static-hosting-deploy]       | Deploys a static application to our shared services static hosting platform.                                                     |
+| [`tflint.yaml`][workflow-tflint]                                                                | Runs a TFLint scan against your OpenTofu (or Terraform) code, and optionally upload the results to GitHub.                       |
+| [`trivy.yaml`][workflow-trivy]                                                                  | Runs a Trivy security scan against your repository, and optionally upload the results to GitHub.                                 |
 
 ## Composite actions
 
@@ -72,12 +74,14 @@ using.
 | [`setup-opentofu`][action-setup-opentofu]                     | Sets up OpenTofu and related environment variables.                                 |
 
 [action-security-features]: docs/actions/security-features.md
-[action-setup-opentofu]: docs/actions/setup-opentofu.md
+[action-setup-opentofu]: docs/actions/setup-opentofu.mdx
 [action-opentofu-changed-modules]: docs/actions/opentofu-changed-modules.md
 [action-doppler-oidc-token]: docs/actions/doppler-oidc-token.md
 [composite-actions]: https://docs.github.com/en/actions/tutorials/create-actions/create-a-composite-action
 [workflow-ecr-build-push]: docs/workflows/ecr-build-push.md
 [workflow-opentofu-apply]: docs/workflows/opentofu-apply.md
 [workflow-opentofu-plan]: docs/workflows/opentofu-plan.md
+[workflow-shared-services-container-hosting-deploy]: docs/workflows/shared-services-container-hosting-deploy.md
+[workflow-shared-services-static-hosting-deploy]: docs/workflows/shared-services-static-hosting-deploy.md
 [workflow-tflint]: docs/workflows/tflint.md
 [workflow-trivy]: docs/workflows/trivy.md
