@@ -1,0 +1,111 @@
+name: Deploy to shared container hosting
+
+on:
+  workflow_call:
+    inputs:
+      application:
+        description: >-
+          Name of the application to deploy. Must match the name of the
+          application's spec file in the shared-services-infra repository,
+          without the extension.
+        type: string
+        required: true
+      environment:
+        description: Environment to deploy to.
+        type: string
+        required: false
+        default: development
+      shared-services-ref:
+        description: >-
+          Branch or tag of the shared-services-infra repository to run the
+          deployment from.
+        type: string
+        required: false
+        default: main
+      timeout:
+        description: >-
+          Maximum time, in minutes, to wait for the deployment to complete.
+        type: number
+        required: false
+        default: 30
+    secrets:
+      DEPLOYMENT_APP_ID:
+        description: ID of the GitHub App used to trigger deployments.
+        required: true
+      DEPLOYMENT_APP_KEY:
+        description: Private key for the GitHub App used to trigger deployments.
+        required: true
+    outputs:
+      run-url:
+        description: URL of the deployment workflow run.
+        value: ${{ jobs.deploy.outputs.run-url }}
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    # Runs in the calling repository's environment.
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: shared-services-container-hosting-deploy-${{ inputs.application }}-${{ inputs.environment }}
+      cancel-in-progress: false
+    outputs:
+      run-url: ${{ steps.dispatch.outputs.run-url }}
+    steps:
+      - name: Get a dispatch token
+        uses: actions/create-github-app-token@v3
+        id: dispatch_token
+        with:
+          client-id: ${{ secrets.DEPLOYMENT_APP_ID }}
+          owner: codeforamerica
+          permission-actions: write
+          private-key: ${{ secrets.DEPLOYMENT_APP_KEY }}
+          repositories: shared-services-infra
+      - name: Trigger deployment
+        uses: codex-/return-dispatch@85e564d60eaec3cc4aca885373d510cfe4bd5b19 # v4.0.1
+        id: dispatch
+        with:
+          token: ${{ steps.dispatch_token.outputs.token }}
+          ref: ${{ inputs.shared-services-ref || 'main' }}
+          owner: codeforamerica
+          repo: shared-services-infra
+          workflow: deploy-app.yaml
+          workflow_inputs: >-
+            {
+              "application": ${{ toJSON(inputs.application) }},
+              "environment": ${{ toJSON(inputs.environment) }}
+            }
+      - name: Get a read-only token for the status check
+        uses: actions/create-github-app-token@v3
+        id: status_token
+        with:
+          client-id: ${{ secrets.DEPLOYMENT_APP_ID }}
+          owner: codeforamerica
+          permission-actions: read
+          private-key: ${{ secrets.DEPLOYMENT_APP_KEY }}
+          repositories: shared-services-infra
+      - name: Wait on deployment
+        uses: lucasssvaz/wait-on-workflow@676745e30db420704878817812d34d95e20a183d # v1.0.0
+        id: waiter
+        with:
+          # Defaults to the calling repository's GITHUB_TOKEN, which can't see
+          # shared-services-infra.
+          github-token: ${{ steps.status_token.outputs.token }}
+          repository: codeforamerica/shared-services-infra
+          timeout: ${{ inputs.timeout }}
+          workflow: ${{ steps.dispatch.outputs.run_id }}
+      - name: Fail unless the deployment succeeded
+        if: steps.waiter.outputs.conclusion != 'success'
+        env:
+          CONCLUSION: ${{ steps.waiter.outputs.conclusion }}
+          RUN_URL: ${{ steps.dispatch.outputs.run-url }}
+        run: |
+          echo "::error::Deployment completed with status: ${CONCLUSION:-unknown}. See $RUN_URL"
+          exit 1
+      - name: Print deployment run
+        env:
+          RUN_URL: ${{ steps.dispatch.outputs.run-url }}
+        run: echo "Deployment succeeded. See $RUN_URL"
