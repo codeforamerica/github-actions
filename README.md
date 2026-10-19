@@ -29,14 +29,18 @@ The filename and inputs you require will depend on the workflow(s) you're using.
 
 ### Available workflows
 
-| Workflow                                         | Description                                                                                                                      |
-| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| `security-scan.yml`                              | Runs a collection of security scans against your repository.                                                                     |
-| [`ecr-build-push.yaml`][workflow-ecr-build-push] | Builds a Docker image and pushes it to an Amazon ECR repository.                                                                 |
-| [`opentofu-apply.yaml`][workflow-opentofu-apply] | Runs `tofu apply` against the specified configuration layer and environment.                                                     |
-| [`opentofu-plan.yaml`][workflow-opentofu-plan]   | Runs `tofu plan` against the specified configuration layer and environment, and captures the resulting plan file as an artifact. |
-| [`tflint.yaml`][workflow-tflint]                 | Runs a TFLint scan against your OpenTofu (or Terraform) code, and optionally upload the results to GitHub.                       |
-| [`trivy.yaml`][workflow-trivy]                   | Runs a Trivy security scan against your repository, and optionally upload the results to GitHub.                                 |
+| Workflow                                                                                        | Description                                                                                                                      |
+| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `security-scan.yml`                                                                             | Runs a collection of security scans against your repository.                                                                     |
+| [`ecr-build-push.yaml`][workflow-ecr-build-push]                                                | Builds a Docker image and pushes it to an Amazon ECR repository.                                                                 |
+| [`opentofu-apply.yaml`][workflow-opentofu-apply]                                                | Runs `tofu apply` against the specified configuration layer and environment.                                                     |
+| [`opentofu-plan.yaml`][workflow-opentofu-plan]                                                  | Runs `tofu plan` against the specified configuration layer and environment, and captures the resulting plan file as an artifact. |
+| [`shared-services-container-hosting-deploy`][workflow-shared-services-container-hosting-deploy] | Deploys a containerized application to our shared services container hosting platform.                                           |
+| [`shared-services-documentation-deploy`][workflow-shared-services-documentation-deploy]         | Deploys documentation to our shared services documentation hosting platform.                                                     |
+| [`shared-services-static-hosting-deploy`][workflow-shared-services-static-hosting-deploy]       | Deploys a static application to our shared services static hosting platform.                                                     |
+| [`tflint.yaml`][workflow-tflint]                                                                | Runs a TFLint scan against your OpenTofu (or Terraform) code, and optionally upload the results to GitHub.                       |
+| [`trivy.yaml`][workflow-trivy]                                                                  | Runs a Trivy security scan against your repository, and optionally upload the results to GitHub.                                 |
+| [`zensical-build.yaml`][workflow-zensical-build]                                                | Builds documentation with Zensical, and uploads the built site as an artifact.                                                   |
 
 ## Composite actions
 
@@ -79,5 +83,9 @@ using.
 [workflow-ecr-build-push]: docs/workflows/ecr-build-push.md
 [workflow-opentofu-apply]: docs/workflows/opentofu-apply.md
 [workflow-opentofu-plan]: docs/workflows/opentofu-plan.md
+[workflow-shared-services-container-hosting-deploy]: docs/workflows/shared-services-container-hosting-deploy.md
+[workflow-shared-services-documentation-deploy]: docs/workflows/shared-services-documentation-deploy.md
+[workflow-shared-services-static-hosting-deploy]: docs/workflows/shared-services-static-hosting-deploy.md
 [workflow-tflint]: docs/workflows/tflint.md
 [workflow-trivy]: docs/workflows/trivy.md
+[workflow-zensical-build]: docs/workflows/zensical-build.md
