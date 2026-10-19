@@ -1,0 +1,96 @@
+name: Deploy to shared documentation hosting
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Environment to deploy to.
+        type: string
+        required: false
+        default: development
+      source-dir:
+        description: >-
+          Local directory to sync, relative to the repository or artifact root.
+        type: string
+        required: false
+        default: "."
+      artifact-ids:
+        description: >-
+          Comma-separated list of artifact IDs to download. Artifact IDs are
+          available as the `artifact-id` output of `actions/upload-artifact`
+          and the `zensical-build.yaml` workflow. Takes precedence over
+          artifact-name.
+        type: string
+        required: false
+        default: ""
+      artifact-name:
+        description: >-
+          Name of a previously uploaded artifact to deploy. An alternative to
+          artifact-ids; prefer artifact-ids when the upload step ID is
+          available.
+        type: string
+        required: false
+        default: ""
+      prefix:
+        description: >-
+          Prefix within the S3 bucket to sync files to. This should be the same
+          as the application name. Defaults to `vars.DOCS_PREFIX` if not set.
+        type: string
+        required: false
+        default: ""
+    secrets:
+      AWS_DOCS_ROLE_ARN:
+        description: IAM role ARN to assume for deployment.
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+run-name: Deploy documentation to ${{ inputs.environment }}
+
+jobs:
+  deploy:
+    name: Deploy documentation to ${{ inputs.environment }}
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    env:
+      BUCKET: ${{ vars.DOCS_BUCKET }}
+      PREFIX: ${{ inputs.prefix || vars.DOCS_PREFIX }}
+      SOURCE_DIR: ${{ inputs.source-dir }}
+    steps:
+      # Make sure both the bucket and prefix are set before attempting to
+      # deploy.
+      - name: Check deployment target
+        run: |
+          if [[ -z "$BUCKET" || -z "$PREFIX" ]]; then
+            echo "::error::DOCS_BUCKET and a prefix (or DOCS_PREFIX) must be set."
+            exit 1
+          fi
+      - name: Checkout repository
+        if: inputs.artifact-name == '' && inputs.artifact-ids == ''
+        uses: actions/checkout@v7
+      - name: Download build artifact
+        if: inputs.artifact-ids != ''
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ inputs.artifact-ids }}
+          path: ${{ inputs.source-dir }}
+      - name: Download build artifact by name
+        if: inputs.artifact-ids == '' && inputs.artifact-name != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ inputs.source-dir }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+          role-session-name: github-${{ github.event.repository.name }}-${{ github.run_id }}
+          role-to-assume: ${{ secrets.AWS_DOCS_ROLE_ARN }}
+      - name: Sync to S3
+        run: |
+          aws s3 sync "$SOURCE_DIR" "s3://$BUCKET/$PREFIX" \
+            --delete \
+            --exclude ".git/*" \
+            --exclude ".github/*"
