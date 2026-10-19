@@ -76,7 +76,7 @@ using.
 | [`setup-opentofu`][action-setup-opentofu]                     | Sets up OpenTofu and related environment variables.                                 |
 
 [action-security-features]: docs/actions/security-features.md
-[action-setup-opentofu]: docs/actions/setup-opentofu.mdx
+[action-setup-opentofu]: docs/actions/setup-opentofu.md
 [action-opentofu-changed-modules]: docs/actions/opentofu-changed-modules.md
 [action-doppler-oidc-token]: docs/actions/doppler-oidc-token.md
 [composite-actions]: https://docs.github.com/en/actions/tutorials/create-actions/create-a-composite-action
